@@ -66,6 +66,14 @@ up: config ## Start all services
 	$(MAKE) showenv; \
 	$(MAKE) showpass airgapped=$(airgapped)
 
+.PHONY: agup
+agup: config ## Start all services
+
+	@docker compose -f docker-compose-airgapped.yml up -d; 
+	@until [[ $$(docker compose -f docker-compose-airgapped.yml ps api --format json | jq -r '.Health') == "healthy" ]]; do printf '.'; sleep 3; done;
+	$(MAKE) showenv;
+	$(MAKE) agshowpass
+
 .PHONY: showenv
 showenv: ## Print the current contents of the .env config
 	@cat <.env
@@ -86,10 +94,19 @@ showpass: ## Print the superuser password
 	docker compose exec $$api_name cat config/env | grep SUPERUSER_PASSWORD
 	@printf '\n'
 
+.PHONY: agshowpass
+agshowpass: ## Print the superuser password
+	@docker compose -f docker-compose-airgapped.yml exec api cat config/env | grep SUPERUSER_PASSWORD
+	@printf '\n'
+
 .PHONY: down
 down: ## Stop all services
 	@export COMPOSE_PROFILES=$(if $(filter true,$(airgapped)),airgapped,balena); \
 	docker compose stop
+
+.PHONY: agdown
+agdown: ## Stop all services
+	@docker compose -f docker-compose-airgapped.yml stop
 
 .PHONY: stop
 stop: down ## Alias for 'make down'
@@ -99,16 +116,31 @@ restart: ## Restart all services
 	@export COMPOSE_PROFILES=$(if $(filter true,$(airgapped)),airgapped,balena); \
 	docker compose restart
 
+.PHONY: agrestart
+agrestart: ## Restart all services
+	@docker compose -f docker-compose-airgapped.yml restart
+
+.PHONY: recreate
+recreate: ## Restart all services
+	@docker compose up -d --force-recreate --remove-orphans
+
+.PHONY: agrecreate
+agrecreate: ## Restart all services
+	@docker compose -f docker-compose-airgapped.yml up -d --force-recreate --remove-orphans
+
 .PHONY: update
 update: # Pull and deploy latest changes from git
 	@git pull
 	@$(MAKE) up airgapped=$(airgapped)
 
-
 .PHONY: destroy ## Stop and remove any existing containers and volumes
 destroy:
 	@export COMPOSE_PROFILES=$(if $(filter true,$(airgapped)),airgapped,balena); \
 	docker compose down --volumes --remove-orphans
+
+.PHONY: agdestroy ## Stop and remove any existing containers and volumes
+agdestroy:
+	@docker compose -f docker-compose-airgapped.yml down --volumes --remove-orphans
 
 .PHONY: clean
 clean: destroy ## Alias for 'make destroy'
