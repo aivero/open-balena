@@ -457,5 +457,5 @@ services:
     volumes:
       -  "/var/run/docker.sock:/var/run/docker.sock"
     environment:
-      - AUTOHEAL_START_PERIOD=300
+      - AUTOHEAL_START_PERIOD=180
     restart: unless-stopped
